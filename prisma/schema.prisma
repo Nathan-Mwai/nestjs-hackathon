@@ -1,4 +1,3 @@
-
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
@@ -10,21 +9,55 @@ generator client {
 }
 
 model User {
-  id            String    @id
-  name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
-  image         String?
-  role          String?   @default("PARTICIPANT")
-  banned        Boolean?  @default(false)
-  banReason     String?
-  banExpires    DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
+  id                    String                 @id
+  name                  String
+  email                 String                 @unique
+  emailVerified         Boolean                @default(false)
+  image                 String?
+  role                  String?                @default("PARTICIPANT")
+  banned                Boolean?               @default(false)
+  banReason             String?
+  banExpires            DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  sessions              Session[]
+  accounts              Account[]
+  hackathons            Hackathon[]
+  hackathonParticipants HackathonParticipant[]
 
   @@map("user")
+}
+
+model Hackathon {
+  id           String                 @id @default(cuid())
+  name         String
+  description  String?
+  startDate    DateTime
+  endDate      DateTime
+  isActive     Boolean                @default(true)
+  authorId     String
+  author       User                   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  participants HackathonParticipant[]
+
+  @@index([authorId])
+  @@map("hackathon")
+}
+
+model HackathonParticipant {
+  id          String    @id @default(cuid())
+  hackathonId String
+  userId      String
+  hackathon   Hackathon @relation(fields: [hackathonId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([hackathonId, userId])
+  @@index([hackathonId])
+  @@index([userId])
+  @@map("hackathon_participant")
 }
 
 model Session {
