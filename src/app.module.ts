@@ -6,6 +6,7 @@ import { AppService } from './app.service.js';
 import { ArcjetSecurityModule } from './lib/arcjet/arcjet.module.js';
 import { auth } from './lib/auth/auth.js';
 import { PrismaModule } from './lib/database/prisma.module.js';
+import { UserModule } from './module/user/user.module.js';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { PrismaModule } from './lib/database/prisma.module.js';
     AuthModule.forRoot({ auth, isGlobal: true }),
     ArcjetSecurityModule,
     PrismaModule,
+    UserModule,
   ],
   controllers: [AppController],
   providers: [AppService],
