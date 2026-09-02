@@ -1,30 +1,35 @@
-# Memory — Arcjet Integration & Global Rate Limiting
+# Memory — Prisma ORM & Prisma Postgres Integration
 
-Last updated: 2026-09-02T10:22:00Z
+Last updated: 2026-09-02T13:57:00Z
 
 ## What was built
 
-- Integrated Arcjet into NestJS 11 backend using `@arcjet/nest` and `@nestjs/config`.
-- Created site `nestjs-hackathon` (ID: `site_01m1grzh4ffertj6qy2ge8a93g`) via Arcjet CLI and configured `ARCJET_KEY`, `ARCJET_ENV=development`, and `ARCJET_MODE=LIVE` in `.env`.
-- Implemented global infrastructure module `src/lib/arcjet/arcjet.module.ts` using `ArcjetModule.forRootAsync` with `ConfigService`.
-- Configured global `shield({ mode: 'LIVE' })` and `fixedWindow({ mode: 'LIVE', window: '60s', max: 10 })` with `ArcjetGuard` registered as `APP_GUARD`.
-- Imported `ConfigModule` and `ArcjetSecurityModule` in `src/app.module.ts`.
+- Connected NestJS 11 backend to Prisma Postgres database (`db_cmtk0m0h80c1vykca2fhyaeb6`).
+- Created `prisma/schema.prisma` configured with PostgreSQL datasource and `User` model.
+- Created `src/lib/database/prisma.service.ts` extending `PrismaClient` with lifecycle hooks (`OnModuleInit`, `OnModuleDestroy`).
+- Created `src/lib/database/prisma.module.ts` marked `@Global()` exporting `PrismaService`.
+- Imported `PrismaModule` into `src/app.module.ts`.
+- Generated Prisma Client and verified database tables (`User`, `_prisma_migrations`).
 
 ## Decisions made
 
-- Used `ArcjetModule.forRootAsync` injected with `ConfigService` rather than static `forRoot` so that environment variables in `.env` are reliably loaded before Arcjet initializes.
-- Placed Arcjet security infrastructure under `src/lib/arcjet/` marked `@Global()` conforming to NestJS-first architecture in `AGENTS.md`.
+- Followed NestJS architectural standards in `AGENTS.md`: isolated Prisma into `@Global()` infrastructure module under `src/lib/database/` with constructor injection.
+- Stored credentials safely in `.env` (gitignored) without logging or committing raw secrets.
 
 ## Problems solved
 
-- Fixed `EADDRINUSE` port collision where previous server instances prevented the updated rate-limiting server from listening.
-- Solved static environment variable timing issue by switching to async module initialization with `ConfigService`.
+- Matched versions between `@prisma/client` and `prisma` CLI to resolve WASM runtime resolution errors.
+- Handled pnpm build script requirements and created schema table migration on Prisma Postgres.
 
 ## Current state
 
-- Project compiles cleanly with `nest build` and `oxlint`.
-- Global Shield and 10-request fixed window rate limiting configured and ready for testing.
+- Project builds cleanly (`nest build`) and passes linting (`oxlint`).
+- Nest application boots successfully (`pnpm start`), initializes `PrismaModule` and `ArcjetSecurityModule`, and responds to requests on port 3000.
 
 ## Next session starts with
 
-- Run `pnpm run start:dev` and execute the 60-curl test loop to observe rate limiting in action (first 10 return 200, remaining return 403).
+- Implement feature modules (e.g. `src/module/users/`) injecting `PrismaService` for database CRUD operations.
+
+## Open questions
+
+- None.
