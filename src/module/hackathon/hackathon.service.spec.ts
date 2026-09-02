@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { HackathonService } from './hackathon.service.js';
 import { PrismaService } from '../../lib/database/prisma.service.js';
@@ -14,14 +14,18 @@ describe('HackathonService', () => {
       update: ReturnType<typeof vi.fn>;
       delete: ReturnType<typeof vi.fn>;
     };
+    hackathonParticipant: {
+      findUnique: ReturnType<typeof vi.fn>;
+      create: ReturnType<typeof vi.fn>;
+    };
   };
 
   const mockHackathon = {
     id: 'hackathon-1',
     name: 'Web3 Builder Hackathon',
     description: 'Build web3 apps with NestJS and Prisma',
-    startDate: new Date('2026-10-01'),
-    endDate: new Date('2026-10-05'),
+    startDate: new Date(Date.now() + 86400000),
+    endDate: new Date(Date.now() + 86400000 * 5),
     isActive: true,
     authorId: 'admin-user-id',
     createdAt: new Date(),
@@ -42,6 +46,10 @@ describe('HackathonService', () => {
         findUnique: vi.fn(),
         update: vi.fn(),
         delete: vi.fn(),
+      },
+      hackathonParticipant: {
+        findUnique: vi.fn(),
+        create: vi.fn(),
       },
     };
 
@@ -158,4 +166,74 @@ describe('HackathonService', () => {
       });
     });
   });
+
+  describe('join', () => {
+    it('should join hackathon successfully', async () => {
+      const mockParticipant = {
+        id: 'participant-1',
+        hackathonId: 'hackathon-1',
+        userId: 'user-2',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      prisma.hackathon.findUnique.mockResolvedValue(mockHackathon);
+      prisma.hackathonParticipant.findUnique.mockResolvedValue(null);
+      prisma.hackathonParticipant.create.mockResolvedValue(mockParticipant);
+
+      const result = await service.join('hackathon-1', 'user-2');
+
+      expect(result).toEqual(mockParticipant);
+      expect(prisma.hackathonParticipant.create).toHaveBeenCalledWith({
+        data: {
+          hackathonId: 'hackathon-1',
+          userId: 'user-2',
+        },
+      });
+    });
+
+    it('should throw NotFoundException if hackathon not found', async () => {
+      prisma.hackathon.findUnique.mockResolvedValue(null);
+
+      await expect(service.join('non-existent', 'user-2')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should throw BadRequestException if hackathon isActive is false', async () => {
+      prisma.hackathon.findUnique.mockResolvedValue({
+        ...mockHackathon,
+        isActive: false,
+      });
+
+      await expect(service.join('hackathon-1', 'user-2')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException if hackathon has already ended', async () => {
+      prisma.hackathon.findUnique.mockResolvedValue({
+        ...mockHackathon,
+        endDate: new Date(Date.now() - 86400000), // yesterday
+      });
+
+      await expect(service.join('hackathon-1', 'user-2')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException if user already joined (duplicate)', async () => {
+      prisma.hackathon.findUnique.mockResolvedValue(mockHackathon);
+      prisma.hackathonParticipant.findUnique.mockResolvedValue({
+        id: 'existing-id',
+        hackathonId: 'hackathon-1',
+        userId: 'user-2',
+      });
+
+      await expect(service.join('hackathon-1', 'user-2')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+  });
 });
+

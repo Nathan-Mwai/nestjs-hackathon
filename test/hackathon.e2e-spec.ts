@@ -213,6 +213,92 @@ describe('HackathonModule (e2e)', () => {
       expect(res.body.data.name).toBe('Updated Hackathon Title');
     });
 
+    it('POST /hackathon/:id/join returns 401 if unauthenticated', async () => {
+      await request(app.getHttpServer())
+        .post(`/hackathon/${createdHackathonId}/join`)
+        .expect(401);
+    });
+
+    it('POST /hackathon/:id/join returns 403 for ADMIN (Participant only)', async () => {
+      await request(app.getHttpServer())
+        .post(`/hackathon/${createdHackathonId}/join`)
+        .set('Cookie', adminCookie)
+        .expect(403);
+    });
+
+    it('POST /hackathon/:id/join returns 404 if hackathon not found', async () => {
+      await request(app.getHttpServer())
+        .post('/hackathon/non-existent-id/join')
+        .set('Cookie', participantCookie)
+        .expect(404);
+    });
+
+    it('POST /hackathon/:id/join succeeds for participant and returns participant record', async () => {
+      const res = await request(app.getHttpServer())
+        .post(`/hackathon/${createdHackathonId}/join`)
+        .set('Cookie', participantCookie)
+        .expect(201);
+
+      expect(res.body.statusCode).toBe(201);
+      expect(res.body.message).toBe('Successfully joined hackathon');
+      expect(res.body.data).toHaveProperty('id');
+      expect(res.body.data.hackathonId).toBe(createdHackathonId);
+    });
+
+    it('POST /hackathon/:id/join prevents duplicate joins and throws 400', async () => {
+      const res = await request(app.getHttpServer())
+        .post(`/hackathon/${createdHackathonId}/join`)
+        .set('Cookie', participantCookie)
+        .expect(400);
+
+      expect(res.body.statusCode).toBe(400);
+      expect(res.body.message).toContain('already joined');
+    });
+
+    it('POST /hackathon/:id/join throws 400 if hackathon is not active', async () => {
+      // Temporarily set hackathon isActive to false
+      await prisma.hackathon.update({
+        where: { id: createdHackathonId },
+        data: { isActive: false },
+      });
+
+      const res = await request(app.getHttpServer())
+        .post(`/hackathon/${createdHackathonId}/join`)
+        .set('Cookie', participantCookie)
+        .expect(400);
+
+      expect(res.body.statusCode).toBe(400);
+      expect(res.body.message).toContain('not active');
+
+      // Restore isActive
+      await prisma.hackathon.update({
+        where: { id: createdHackathonId },
+        data: { isActive: true },
+      });
+    });
+
+    it('POST /hackathon/:id/join throws 400 if hackathon has already ended', async () => {
+      // Temporarily set endDate in past
+      await prisma.hackathon.update({
+        where: { id: createdHackathonId },
+        data: { endDate: new Date(Date.now() - 86400000) },
+      });
+
+      const res = await request(app.getHttpServer())
+        .post(`/hackathon/${createdHackathonId}/join`)
+        .set('Cookie', participantCookie)
+        .expect(400);
+
+      expect(res.body.statusCode).toBe(400);
+      expect(res.body.message).toContain('already ended');
+
+      // Restore endDate
+      await prisma.hackathon.update({
+        where: { id: createdHackathonId },
+        data: { endDate: new Date(Date.now() + 86400000 * 5) },
+      });
+    });
+
     it('DELETE /hackathon/:id is forbidden (403) for participants', async () => {
       await request(app.getHttpServer())
         .delete(`/hackathon/${createdHackathonId}`)

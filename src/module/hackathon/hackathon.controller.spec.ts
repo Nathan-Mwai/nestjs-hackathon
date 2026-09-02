@@ -12,6 +12,7 @@ describe('HackathonController', () => {
     findOne: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
     remove: ReturnType<typeof vi.fn>;
+    join: ReturnType<typeof vi.fn>;
   };
 
   const mockSession: UserSession = {
@@ -51,6 +52,7 @@ describe('HackathonController', () => {
       findOne: vi.fn(),
       update: vi.fn(),
       remove: vi.fn(),
+      join: vi.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -132,4 +134,31 @@ describe('HackathonController', () => {
     expect(result).toEqual(mockHackathon);
     expect(hackathonService.remove).toHaveBeenCalledWith('hackathon-1');
   });
+
+  it('join calls service.join with id and session user id', async () => {
+    const mockParticipant = {
+      id: 'part-1',
+      hackathonId: 'hackathon-1',
+      userId: 'participant-id',
+    };
+    hackathonService.join.mockResolvedValue(mockParticipant);
+
+    const participantSession: UserSession = {
+      ...mockSession,
+      user: {
+        ...mockSession.user,
+        id: 'participant-id',
+        role: 'PARTICIPANT',
+      },
+    };
+
+    const result = await controller.join('hackathon-1', participantSession);
+
+    expect(result).toEqual(mockParticipant);
+    expect(hackathonService.join).toHaveBeenCalledWith(
+      'hackathon-1',
+      'participant-id',
+    );
+  });
 });
+
