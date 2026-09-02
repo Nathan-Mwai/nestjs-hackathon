@@ -5,5 +5,6 @@ import { HackathonController } from './hackathon.controller.js';
 @Module({
   controllers: [HackathonController],
   providers: [HackathonService],
+  exports: [HackathonService],
 })
 export class HackathonModule {}

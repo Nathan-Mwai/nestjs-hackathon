@@ -14,21 +14,28 @@ import {
     ArcjetModule.forRootAsync({
       isGlobal: true,
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        key: configService.get<string>('ARCJET_KEY')!,
-        rules: [
-          // Global Shield protection against common attacks
-          shield({
-            mode: (configService.get<string>('ARCJET_MODE') as 'LIVE' | 'DRY_RUN') || 'LIVE',
-          }),
-          // Global Rate limiting (10 requests per 60s window)
-          fixedWindow({
-            mode: (configService.get<string>('ARCJET_MODE') as 'LIVE' | 'DRY_RUN') || 'LIVE',
-            window: '60s',
-            max: 10,
-          }),
-        ],
-      }),
+      useFactory: (configService: ConfigService) => {
+        const isTest = process.env.NODE_ENV === 'test';
+        const mode = isTest
+          ? 'DRY_RUN'
+          : (configService.get<string>('ARCJET_MODE') as 'LIVE' | 'DRY_RUN') || 'LIVE';
+
+        return {
+          key: configService.get<string>('ARCJET_KEY')!,
+          rules: [
+            // Global Shield protection against common attacks
+            shield({
+              mode,
+            }),
+            // Global Rate limiting (10 requests per 60s window)
+            fixedWindow({
+              mode,
+              window: '60s',
+              max: 10,
+            }),
+          ],
+        };
+      },
     }),
   ],
   providers: [
